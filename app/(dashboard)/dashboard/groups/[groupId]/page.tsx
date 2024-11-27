@@ -6,6 +6,8 @@ import { Card } from "@/components/ui/card";
 import { Users, PiggyBank, Calendar, AlertCircle } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { MakeContribution } from "@/app/components/MakeContribution";
+import { RequestFunds } from "@/app/components/RequestFunds";
+import { useAuth } from "@clerk/nextjs";
 
 interface Contribution {
   id: string;
@@ -47,6 +49,8 @@ export default function GroupDetailsPage() {
   const params = useParams();
   const [group, setGroup] = useState<Group | null>(null);
   const [loading, setLoading] = useState(true);
+  const [currentMember, setCurrentMember] = useState<Member | null>(null);
+  const { userId } = useAuth();
 
   const fetchGroupDetails = async () => {
     try {
@@ -54,6 +58,12 @@ export default function GroupDetailsPage() {
       if (!response.ok) throw new Error("Failed to fetch group details");
       const data = await response.json();
       setGroup(data);
+      
+      // Find current member
+      if (userId) {
+        const member = data.members.find((m: Member) => m.userId === userId);
+        setCurrentMember(member || null);
+      }
     } catch (error) {
       console.error("Error fetching group details:", error);
     } finally {
@@ -63,7 +73,7 @@ export default function GroupDetailsPage() {
 
   useEffect(() => {
     fetchGroupDetails();
-  }, [params.groupId],);
+  }, [params.groupId, userId]);
 
   if (loading) {
     return <div>Loading group details...</div>;
@@ -126,7 +136,15 @@ export default function GroupDetailsPage() {
                 <h3 className="font-semibold">Description</h3>
                 <p className="mt-1 text-gray-600">{group.description}</p>
               </div>
-              
+
+              <div className="pt-4">
+                <RequestFunds
+                  groupId={group.id}
+                  memberTotalSavings={currentMember?.totalSavings || 0}
+                  hasContributions={currentMember?.totalSavings > 0}
+                  onSuccess={fetchGroupDetails}
+                />
+              </div>
             </div>
           </Card>
         </TabsContent>

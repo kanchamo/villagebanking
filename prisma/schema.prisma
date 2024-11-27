@@ -21,6 +21,7 @@ model Group {
   nextMeeting       DateTime?
   members           Member[]
   contributions     Contribution[]
+  fundRequests      FundRequest[]
 }
 
 model Member {
@@ -34,6 +35,7 @@ model Member {
   status        String   @default("ACTIVE") // ACTIVE, INACTIVE, SUSPENDED
   lastPayment   DateTime?
   contributions Contribution[]
+  fundRequests  FundRequest[]
 
   @@index([groupId])
   @@index([userId])
@@ -49,6 +51,23 @@ model Contribution {
   group     Group    @relation(fields: [groupId], references: [id])
   status    String   @default("PENDING") // PENDING, COMPLETED, FAILED
   notes     String?
+
+  @@index([memberId])
+  @@index([groupId])
+}
+
+model FundRequest {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  type      String   // LOAN, PAYOUT
+  amount    Float
+  reason    String
+  status    String   @default("PENDING") // PENDING, APPROVED, REJECTED, COMPLETED
+  date      DateTime @default(now())
+  memberId  String   @db.ObjectId
+  member    Member   @relation(fields: [memberId], references: [id])
+  groupId   String   @db.ObjectId
+  group     Group    @relation(fields: [groupId], references: [id])
+  notes     String?  // For admin comments on approval/rejection
 
   @@index([memberId])
   @@index([groupId])
