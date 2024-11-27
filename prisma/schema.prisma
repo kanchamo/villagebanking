@@ -1,0 +1,40 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+model Group {
+  id                 String    @id @default(auto()) @map("_id") @db.ObjectId
+  name               String
+  description        String
+  maxMembers         Int
+  contributionAmount Float
+  rules              String[]
+  adminId           String    // Clerk user ID of the group admin
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  totalSavings      Float     @default(0)
+  nextMeeting       DateTime?
+  members           Member[]
+}
+
+model Member {
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId        String   // Clerk user ID
+  groupId       String   @db.ObjectId
+  group         Group    @relation(fields: [groupId], references: [id])
+  joinedAt      DateTime @default(now())
+  totalSavings  Float    @default(0)
+  isAdmin       Boolean  @default(false)
+  status        String   @default("ACTIVE") // ACTIVE, INACTIVE, SUSPENDED
+  lastPayment   DateTime?
+
+  @@index([groupId])
+  @@index([userId])
+}
+
+
