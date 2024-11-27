@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Users, PiggyBank, Calendar} from "lucide-react";
@@ -21,6 +22,7 @@ interface Group {
 }
 
 export default function GroupsPage() {
+  const router = useRouter();
   const [groups, setGroups] = useState<Group[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -85,7 +87,11 @@ export default function GroupsPage() {
               </div>
 
               <div className="flex space-x-2">
-                <Button className="flex-1" variant="outline">
+                <Button 
+                  className="flex-1" 
+                  variant="outline"
+                  onClick={() => router.push(`/dashboard/groups/${group.id}`)}
+                >
                   View Details
                 </Button>
                 {!group.members.length && (

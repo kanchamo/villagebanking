@@ -20,6 +20,7 @@ model Group {
   totalSavings      Float     @default(0)
   nextMeeting       DateTime?
   members           Member[]
+  contributions     Contribution[]
 }
 
 model Member {
@@ -32,9 +33,23 @@ model Member {
   isAdmin       Boolean  @default(false)
   status        String   @default("ACTIVE") // ACTIVE, INACTIVE, SUSPENDED
   lastPayment   DateTime?
+  contributions Contribution[]
 
   @@index([groupId])
   @@index([userId])
 }
 
+model Contribution {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  amount    Float
+  date      DateTime @default(now())
+  memberId  String   @db.ObjectId
+  member    Member   @relation(fields: [memberId], references: [id])
+  groupId   String   @db.ObjectId
+  group     Group    @relation(fields: [groupId], references: [id])
+  status    String   @default("PENDING") // PENDING, COMPLETED, FAILED
+  notes     String?
 
+  @@index([memberId])
+  @@index([groupId])
+}
