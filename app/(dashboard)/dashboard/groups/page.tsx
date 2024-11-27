@@ -6,6 +6,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Users, PiggyBank, Calendar} from "lucide-react";
 import { CreateGroupForm } from "@/app/components/CreateGroupForm";
+import { JoinGroup } from "@/app/components/JoinGroup";
 
 interface Group {
   id: string;
@@ -95,11 +96,7 @@ export default function GroupsPage() {
                   View Details
                 </Button>
                 {!group.members.length && (
-                  <Button className="flex-1 bg-primary hover:bg-primary-600"
-                    
-                  >
-                    Join Group
-                  </Button>
+                  <JoinGroup groupId={group.id} onSuccess={fetchGroups} />
                 )}
               </div>
             </div>
