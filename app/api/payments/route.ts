@@ -2,6 +2,9 @@ import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { stripe } from "@/lib/stripe";
 
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
 export async function POST(req: Request) {
   try {
     const { userId } = await auth();
@@ -40,6 +43,9 @@ export async function POST(req: Request) {
     return NextResponse.json({ sessionId: session.id });
   } catch (error) {
     console.error("Error creating payment session:", error);
-    return new NextResponse("Internal Server Error", { status: 500 });
+    return new NextResponse(
+      `Failed to create payment session: ${error instanceof Error ? error.message : "Unknown error"}`,
+      { status: 500 }
+    );
   }
 }

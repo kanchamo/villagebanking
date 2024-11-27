@@ -4,6 +4,9 @@ import { stripe } from "@/lib/stripe";
 import prisma from "@/lib/prisma";
 import Stripe from "stripe";
 
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
 async function updateGroupAndMemberContributions(
   groupId: string,
   userId: string,
@@ -56,7 +59,7 @@ async function updateGroupAndMemberContributions(
 
 export async function POST(req: Request) {
   const body = await req.text();
-  const signature =  headers().get("Stripe-Signature") as string;
+  const signature = headers().get("Stripe-Signature") as string;
 
   let event: Stripe.Event;
 
@@ -76,6 +79,12 @@ export async function POST(req: Request) {
       const session = event.data.object as Stripe.Checkout.Session;
       const metadata = session.metadata!;
       const amount = session.amount_total! / 100; // Convert from cents to dollars
+
+      console.log("Processing completed checkout session:", {
+        sessionId: session.id,
+        metadata,
+        amount,
+      });
 
       await updateGroupAndMemberContributions(
         metadata.groupId,
@@ -97,11 +106,16 @@ export async function POST(req: Request) {
           },
         },
       });
+
+      console.log("Successfully processed contribution and created notification");
     }
 
     return new NextResponse(null, { status: 200 });
   } catch (error) {
     console.error("Error processing webhook:", error);
-    return new NextResponse("Webhook handler failed", { status: 500 });
+    return new NextResponse(
+      `Webhook handler failed: ${error instanceof Error ? error.message : "Unknown error"}`,
+      { status: 500 }
+    );
   }
 }
