@@ -7,6 +7,7 @@ import { Users, PiggyBank, Calendar, AlertCircle } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { MakeContribution } from "@/app/components/MakeContribution";
 import { RequestFunds } from "@/app/components/RequestFunds";
+import { JoinGroup } from "@/app/components/JoinGroup";
 import { useAuth } from "@clerk/nextjs";
 
 interface Contribution {
@@ -92,6 +93,9 @@ export default function GroupDetailsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold text-gray-900">{group.name}</h1>
+        {!currentMember && group._count.members < group.maxMembers && (
+          <JoinGroup groupId={group.id} onSuccess={fetchGroupDetails} />
+        )}
       </div>
 
       <Tabs defaultValue="overview" className="space-y-4">

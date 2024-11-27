@@ -95,7 +95,9 @@ export default function GroupsPage() {
                   View Details
                 </Button>
                 {!group.members.length && (
-                  <Button className="flex-1 bg-primary hover:bg-primary-600">
+                  <Button className="flex-1 bg-primary hover:bg-primary-600"
+                    
+                  >
                     Join Group
                   </Button>
                 )}

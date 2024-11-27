@@ -8,67 +8,99 @@ datasource db {
 }
 
 model Group {
-  id                 String    @id @default(auto()) @map("_id") @db.ObjectId
+  id                 String         @id @default(auto()) @map("_id") @db.ObjectId
   name               String
   description        String
   maxMembers         Int
   contributionAmount Float
   rules              String[]
-  adminId           String    // Clerk user ID of the group admin
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
-  totalSavings      Float     @default(0)
-  nextMeeting       DateTime?
-  members           Member[]
-  contributions     Contribution[]
-  fundRequests      FundRequest[]
+  adminId            String // Clerk user ID of the group admin
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+  totalSavings       Float          @default(0)
+  nextMeeting        DateTime?
+  members            Member[]
+  contributions      Contribution[]
+  fundRequests       FundRequest[]
+  joinRequests       JoinRequest[]
 }
 
 model Member {
-  id            String   @id @default(auto()) @map("_id") @db.ObjectId
-  userId        String   // Clerk user ID
-  groupId       String   @db.ObjectId
-  group         Group    @relation(fields: [groupId], references: [id])
-  joinedAt      DateTime @default(now())
-  totalSavings  Float    @default(0)
-  isAdmin       Boolean  @default(false)
-  status        String   @default("ACTIVE") // ACTIVE, INACTIVE, SUSPENDED
+  id            String         @id @default(auto()) @map("_id") @db.ObjectId
+  userId        String // Clerk user ID
+  groupId       String         @db.ObjectId
+  group         Group          @relation(fields: [groupId], references: [id])
+  joinedAt      DateTime       @default(now())
+  totalSavings  Float          @default(0)
+  isAdmin       Boolean        @default(false)
+  status        String         @default("ACTIVE") // ACTIVE, INACTIVE, SUSPENDED
   lastPayment   DateTime?
   contributions Contribution[]
   fundRequests  FundRequest[]
+  joinRequests  JoinRequest[]
+  notifications Notification[]
 
   @@index([groupId])
   @@index([userId])
 }
 
 model Contribution {
-  id        String   @id @default(auto()) @map("_id") @db.ObjectId
-  amount    Float
-  date      DateTime @default(now())
-  memberId  String   @db.ObjectId
-  member    Member   @relation(fields: [memberId], references: [id])
-  groupId   String   @db.ObjectId
-  group     Group    @relation(fields: [groupId], references: [id])
-  status    String   @default("PENDING") // PENDING, COMPLETED, FAILED
-  notes     String?
+  id       String   @id @default(auto()) @map("_id") @db.ObjectId
+  amount   Float
+  date     DateTime @default(now())
+  memberId String   @db.ObjectId
+  member   Member   @relation(fields: [memberId], references: [id])
+  groupId  String   @db.ObjectId
+  group    Group    @relation(fields: [groupId], references: [id])
+  status   String   @default("PENDING") // PENDING, COMPLETED, FAILED
+  notes    String?
 
   @@index([memberId])
   @@index([groupId])
 }
 
 model FundRequest {
-  id        String   @id @default(auto()) @map("_id") @db.ObjectId
-  type      String   // LOAN, PAYOUT
-  amount    Float
-  reason    String
-  status    String   @default("PENDING") // PENDING, APPROVED, REJECTED, COMPLETED
-  date      DateTime @default(now())
-  memberId  String   @db.ObjectId
-  member    Member   @relation(fields: [memberId], references: [id])
-  groupId   String   @db.ObjectId
-  group     Group    @relation(fields: [groupId], references: [id])
-  notes     String?  // For admin comments on approval/rejection
+  id       String   @id @default(auto()) @map("_id") @db.ObjectId
+  type     String // LOAN, PAYOUT
+  amount   Float
+  reason   String
+  status   String   @default("PENDING") // PENDING, APPROVED, REJECTED, COMPLETED
+  date     DateTime @default(now())
+  memberId String   @db.ObjectId
+  member   Member   @relation(fields: [memberId], references: [id])
+  groupId  String   @db.ObjectId
+  group    Group    @relation(fields: [groupId], references: [id])
+  notes    String? // For admin comments on approval/rejection
 
   @@index([memberId])
   @@index([groupId])
+}
+
+model JoinRequest {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String // Clerk user ID
+  groupId   String   @db.ObjectId
+  group     Group    @relation(fields: [groupId], references: [id])
+  status    String   @default("PENDING") // PENDING, APPROVED, REJECTED
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  message   String? // Optional message from the user requesting to join
+  Member    Member?  @relation(fields: [memberId], references: [id])
+  memberId  String?  @db.ObjectId
+
+  @@index([groupId])
+  @@index([userId])
+}
+
+model Notification {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  type      String // JOIN_REQUEST, CONTRIBUTION, FUND_REQUEST, etc.
+  userId    String // Clerk user ID of the recipient
+  title     String
+  message   String
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+  metadata  Json? // Additional data like groupId, requestId, etc.
+  Member    Member?  @relation(fields: [memberId], references: [id])
+  memberId  String?  @db.ObjectId
 }
