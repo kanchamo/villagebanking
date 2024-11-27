@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { loadStripe } from "@stripe/stripe-js";
 import {
   Dialog,
   DialogContent,
@@ -12,11 +13,15 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { useToast } from "@/hooks/use-toast";
+
+// Initialize Stripe
+const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
 
 interface MakeContributionProps {
   groupId: string;
   contributionAmount: number;
-  onSuccess: () => void;
+  onSuccess?: () => void;
 }
 
 export function MakeContribution({
@@ -27,32 +32,48 @@ export function MakeContribution({
   const [open, setOpen] = useState(false);
   const [notes, setNotes] = useState("");
   const [loading, setLoading] = useState(false);
+  const { toast } = useToast();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
     try {
-      const response = await fetch(`/api/groups/${groupId}/contribute`, {
+      // Create a Stripe Checkout Session
+      const response = await fetch("/api/payments", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
+          groupId,
           amount: contributionAmount,
           notes,
         }),
       });
 
       if (!response.ok) {
-        throw new Error("Failed to make contribution");
+        throw new Error("Failed to create payment session");
       }
 
-      setOpen(false);
-      setNotes("");
-      onSuccess();
+      const { sessionId } = await response.json();
+
+      // Redirect to Stripe Checkout
+      const stripe = await stripePromise;
+      if (!stripe) throw new Error("Stripe failed to load");
+
+      const { error } = await stripe.redirectToCheckout({ sessionId });
+
+      if (error) {
+        throw error;
+      }
     } catch (error) {
-      console.error("Error making contribution:", error);
+      console.error("Error processing payment:", error);
+      toast({
+        title: "Error",
+        description: "Failed to process payment. Please try again.",
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
     }
@@ -85,7 +106,7 @@ export function MakeContribution({
             />
           </div>
           <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? "Processing..." : "Submit Contribution"}
+            {loading ? "Processing..." : "Proceed to Payment"}
           </Button>
         </form>
       </DialogContent>
