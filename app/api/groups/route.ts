@@ -11,6 +11,34 @@ const createGroupSchema = z.object({
   rules: z.array(z.string()),
 });
 
+export async function GET() {
+  try {
+    const { userId } = await auth();
+    
+    if (!userId) {
+      return new NextResponse("Unauthorized", { status: 401 });
+    }
+
+    const groups = await prisma.group.findMany({
+      include: {
+        _count: {
+          select: { members: true }
+        },
+        members: {
+          where: {
+            userId: userId
+          }
+        }
+      }
+    });
+
+    return NextResponse.json(groups);
+  } catch (error) {
+    console.error("Error fetching groups:", error);
+    return new NextResponse("Internal Server Error", { status: 500 });
+  }
+}
+
 export async function POST(req: Request) {
   try {
     const { userId } = await auth();

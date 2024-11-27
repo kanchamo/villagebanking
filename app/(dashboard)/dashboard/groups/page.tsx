@@ -1,33 +1,55 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Users, PiggyBank, Calendar } from "lucide-react";
+import { Users, PiggyBank, Calendar} from "lucide-react";
 import { CreateGroupForm } from "@/app/components/CreateGroupForm";
 
+interface Group {
+  id: string;
+  name: string;
+  totalSavings: number;
+  nextMeeting: string | null;
+  _count: {
+    members: number;
+  };
+  members: Array<{
+    userId: string;
+    isAdmin: boolean;
+  }>;
+}
+
 export default function GroupsPage() {
-  const groups = [
-    {
-      id: 1,
-      name: "Community Savers",
-      members: 32,
-      totalSavings: 12500,
-      nextMeeting: "2024-03-25",
-    },
-    {
-      id: 2,
-      name: "Village Progress",
-      members: 28,
-      totalSavings: 9800,
-      nextMeeting: "2024-03-27",
-    },
-  ];
+  const [groups, setGroups] = useState<Group[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchGroups = async () => {
+    try {
+      const response = await fetch("/api/groups");
+      if (!response.ok) throw new Error("Failed to fetch groups");
+      const data = await response.json();
+      setGroups(data);
+    } catch (error) {
+      console.error("Error fetching groups:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchGroups();
+  }, []);
+
+  if (loading) {
+    return <div>Loading groups...</div>;
+  }
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold text-gray-900">Groups</h1>
-        <CreateGroupForm onSuccess={() => {}} />
+        <CreateGroupForm onSuccess={fetchGroups} />
       </div>
 
       <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
@@ -46,28 +68,31 @@ export default function GroupsPage() {
               <div className="space-y-2">
                 <div className="flex items-center text-gray-600">
                   <Users className="mr-2 h-4 w-4" />
-                  <span>{group.members} members</span>
+                  <span>{group._count.members} members</span>
                 </div>
                 <div className="flex items-center text-gray-600">
                   <PiggyBank className="mr-2 h-4 w-4" />
                   <span>${group.totalSavings.toLocaleString()}</span>
                 </div>
-                <div className="flex items-center text-gray-600">
-                  <Calendar className="mr-2 h-4 w-4" />
-                  <span>
-                    Next meeting:{" "}
-                    {new Date(group.nextMeeting).toLocaleDateString()}
-                  </span>
-                </div>
+                {group.nextMeeting && (
+                  <div className="flex items-center text-gray-600">
+                    <Calendar className="mr-2 h-4 w-4" />
+                    <span>
+                      Next meeting: {new Date(group.nextMeeting).toLocaleDateString()}
+                    </span>
+                  </div>
+                )}
               </div>
 
               <div className="flex space-x-2">
                 <Button className="flex-1" variant="outline">
                   View Details
                 </Button>
-                <Button className="flex-1 bg-primary hover:bg-primary-600">
-                  Join Group
-                </Button>
+                {!group.members.length && (
+                  <Button className="flex-1 bg-primary hover:bg-primary-600">
+                    Join Group
+                  </Button>
+                )}
               </div>
             </div>
           </Card>
