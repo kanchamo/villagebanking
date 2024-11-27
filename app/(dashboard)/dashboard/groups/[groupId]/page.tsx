@@ -146,6 +146,7 @@ export default function GroupDetailsPage() {
                   groupId={group.id}
                   memberTotalSavings={currentMember?.totalSavings || 0}
                   hasContributions={currentMember?.totalSavings > 0}
+                  lastPaymentDate={currentMember?.lastPayment}
                   onSuccess={fetchGroupDetails}
                 />
               </div>
@@ -205,50 +206,87 @@ export default function GroupDetailsPage() {
                   <h3 className="font-semibold">Contribution Amount</h3>
                   <p className="text-gray-600">${group.contributionAmount.toLocaleString()} per cycle</p>
                 </div>
-                <MakeContribution
-                  groupId={group.id}
-                  contributionAmount={group.contributionAmount}
-                  onSuccess={fetchGroupDetails}
-                />
+                {currentMember && (
+                  <MakeContribution
+                    groupId={group.id}
+                    contributionAmount={group.contributionAmount}
+                    onSuccess={fetchGroupDetails}
+                  />
+                )}
               </div>
 
+              {currentMember && (
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <h4 className="font-semibold mb-2">Your Contribution Status</h4>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-sm text-gray-500">Total Contributions</p>
+                      <p className="font-semibold">${currentMember.totalSavings.toLocaleString()}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500">Last Contribution</p>
+                      <p className="font-semibold">
+                        {currentMember.lastPayment
+                          ? new Date(currentMember.lastPayment).toLocaleDateString()
+                          : "No contributions yet"}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <div className="space-y-4">
-                <h3 className="font-semibold">Contribution History</h3>
+                <div className="flex justify-between items-center">
+                  <h3 className="font-semibold">Contribution History</h3>
+                  <div className="text-sm text-gray-500">
+                    Total Contributions: {group.contributions.length}
+                  </div>
+                </div>
                 <div className="space-y-4">
                   {!group.contributions || group.contributions.length === 0 ? (
                     <p className="text-gray-500">No contributions yet</p>
                   ) : (
-                    group.contributions.map((contribution) => (
-                      <div
-                        key={contribution.id}
-                        className="flex items-center justify-between border-b pb-4 last:border-0 last:pb-0"
-                      >
-                        <div>
-                          <p className="font-semibold">
-                            ${contribution.amount.toLocaleString()}
-                          </p>
-                          <p className="text-sm text-gray-500">
-                            {new Date(contribution.date).toLocaleDateString()}
-                          </p>
-                          {contribution.notes && (
-                            <p className="text-sm text-gray-600 mt-1">
-                              {contribution.notes}
-                            </p>
-                          )}
-                        </div>
-                        <span
-                          className={`rounded-full px-3 py-1 text-sm ${
-                            contribution.status === "COMPLETED"
-                              ? "bg-green-100 text-green-700"
-                              : contribution.status === "PENDING"
-                              ? "bg-yellow-100 text-yellow-700"
-                              : "bg-red-100 text-red-700"
-                          }`}
+                    <div className="divide-y">
+                      {group.contributions.map((contribution) => (
+                        <div
+                          key={contribution.id}
+                          className="py-4 first:pt-0 last:pb-0"
                         >
-                          {contribution.status}
-                        </span>
-                      </div>
-                    ))
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <p className="font-semibold">
+                                ${contribution.amount.toLocaleString()}
+                              </p>
+                              <p className="text-sm text-gray-500">
+                                {new Date(contribution.date).toLocaleDateString()} at{" "}
+                                {new Date(contribution.date).toLocaleTimeString()}
+                              </p>
+                              {contribution.notes && (
+                                <p className="text-sm text-gray-600 mt-1">
+                                  Note: {contribution.notes}
+                                </p>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-3">
+                              <p className="text-sm text-gray-500">
+                                By: {contribution.member.userId === userId ? "You" : contribution.member.userId}
+                              </p>
+                              <span
+                                className={`rounded-full px-3 py-1 text-sm ${
+                                  contribution.status === "COMPLETED"
+                                    ? "bg-green-100 text-green-700"
+                                    : contribution.status === "PENDING"
+                                    ? "bg-yellow-100 text-yellow-700"
+                                    : "bg-red-100 text-red-700"
+                                }`}
+                              >
+                                {contribution.status}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   )}
                 </div>
               </div>

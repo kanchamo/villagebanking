@@ -44,6 +44,7 @@ interface RequestFundsProps {
   groupId: string;
   memberTotalSavings: number;
   hasContributions: boolean;
+  lastPaymentDate: string | null;
   onSuccess: () => void;
 }
 
@@ -51,6 +52,7 @@ export function RequestFunds({
   groupId,
   memberTotalSavings,
   hasContributions,
+  lastPaymentDate,
   onSuccess,
 }: RequestFundsProps) {
   const [open, setOpen] = useState(false);
@@ -65,18 +67,47 @@ export function RequestFunds({
     },
   });
 
+  const canRequestPayout = () => {
+    if (!hasContributions || memberTotalSavings <= 0) {
+      return { allowed: false, reason: "You need to have made contributions first" };
+    }
+
+    if (!lastPaymentDate) {
+      return { allowed: false, reason: "No payment history found" };
+    }
+
+    // Check if last payment was at least 30 days ago
+    const lastPayment = new Date(lastPaymentDate);
+    const daysSinceLastPayment = Math.floor((Date.now() - lastPayment.getTime()) / (1000 * 60 * 60 * 24));
+    if (daysSinceLastPayment < 30) {
+      return { 
+        allowed: false, 
+        reason: `You need to wait ${30 - daysSinceLastPayment} more days before requesting a payout` 
+      };
+    }
+
+    return { allowed: true, reason: "" };
+  };
+
   const onSubmit = async (data: RequestValues) => {
     setError(null);
+
+    if (data.type === "PAYOUT") {
+      const payoutCheck = canRequestPayout();
+      if (!payoutCheck.allowed) {
+        setError(payoutCheck.reason);
+        return;
+      }
+
+      if (data.amount > memberTotalSavings * 0.5) {
+        setError("Payout amount cannot exceed 50% of your total contributions");
+        return;
+      }
+    }
 
     // Check if amount is more than 2x total contributions for loans
     if (data.type === "LOAN" && data.amount > memberTotalSavings * 2) {
       setError("Loan amount cannot exceed twice your total contributions");
-      return;
-    }
-
-    // For payouts, can't request more than total savings
-    if (data.type === "PAYOUT" && data.amount > memberTotalSavings) {
-      setError("Payout amount cannot exceed your total contributions");
       return;
     }
 
@@ -90,7 +121,8 @@ export function RequestFunds({
       });
 
       if (!response.ok) {
-        throw new Error("Failed to submit request");
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to submit request");
       }
 
       setOpen(false);
@@ -98,7 +130,7 @@ export function RequestFunds({
       onSuccess();
     } catch (error) {
       console.error("Error submitting request:", error);
-      setError("Failed to submit request. Please try again.");
+      setError(error instanceof Error ? error.message : "Failed to submit request. Please try again.");
     }
   };
 
