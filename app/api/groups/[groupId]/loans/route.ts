@@ -20,6 +20,7 @@ export async function GET(
       include: {
         borrower: true,
         payments: true,
+        request: true,
       },
     });
 

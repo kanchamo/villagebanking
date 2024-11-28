@@ -95,7 +95,7 @@ export default function Loans({ groupId }: LoansProps) {
           {loans.map((loan) => (
             <TableRow key={loan.id}>
               <TableCell>${loan.amount.toLocaleString()}</TableCell>
-              <TableCell>{loan.request.reason}</TableCell>
+              <TableCell>{loan.request?.reason || 'N/A'}</TableCell>
               <TableCell>{format(new Date(loan.dueDate), "PPP")}</TableCell>
               <TableCell>
                 <Badge className={getStatusBadgeColor(loan.status)}>
