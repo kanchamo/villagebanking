@@ -4,20 +4,21 @@ import prisma from "@/lib/prisma";
 
 export async function POST(
   req: Request,
-  { params }: { params: { groupId: string } }
+  context: { params: { groupId: string } }
 ) {
   try {
+    const { groupId } = context.params;
     const { userId } = await auth();
     if (!userId) {
       return new NextResponse("Unauthorized", { status: 401 });
     }
 
-    const { amount, reason, type } = await req.json();
+    const { amount, reason, type, duration } = await req.json();
 
     // Get member and group details
     const member = await prisma.member.findFirst({
       where: {
-        groupId: params.groupId,
+        groupId,
         userId,
       },
       include: {
@@ -56,8 +57,9 @@ export async function POST(
         type,
         amount,
         reason,
-        groupId: params.groupId,
+        groupId,
         memberId: member.id,
+        ...(type === "LOAN" && { duration }),
       },
       include: {
         member: true,
@@ -73,7 +75,7 @@ export async function POST(
         message: `${userId} has requested a ${type.toLowerCase()} of $${amount.toLocaleString()}. Please review and vote.`,
         metadata: {
           requestId: fundRequest.id,
-          groupId: params.groupId,
+          groupId,
           amount,
           type,
         },
@@ -90,9 +92,10 @@ export async function POST(
 // Get all fund requests for a group
 export async function GET(
   req: Request,
-  { params }: { params: { groupId: string } }
+  context: { params: { groupId: string } }
 ) {
   try {
+    const { groupId } = context.params;
     const { userId } = await auth();
     if (!userId) {
       return new NextResponse("Unauthorized", { status: 401 });
@@ -100,7 +103,7 @@ export async function GET(
 
     const requests = await prisma.fundRequest.findMany({
       where: {
-        groupId: params.groupId,
+        groupId,
       },
       include: {
         member: true,
@@ -154,9 +157,10 @@ export async function GET(
 // Vote on a fund request
 export async function PUT(
   req: Request,
-  { params }: { params: { groupId: string } }
+  context: { params: { groupId: string } }
 ) {
   try {
+    const { groupId } = context.params;
     const { userId } = await auth();
     if (!userId) {
       return new NextResponse("Unauthorized", { status: 401 });
@@ -167,7 +171,7 @@ export async function PUT(
     // Get member details
     const member = await prisma.member.findFirst({
       where: {
-        groupId: params.groupId,
+        groupId,
         userId,
       },
     });
@@ -224,7 +228,7 @@ export async function PUT(
           message: `Your ${request.type.toLowerCase()} request for $${request.amount.toLocaleString()} has been approved by the group`,
           metadata: {
             requestId,
-            groupId: params.groupId,
+            groupId,
             amount: request.amount,
             type: request.type,
           },
@@ -242,7 +246,7 @@ export async function PUT(
             message: `A ${request.type.toLowerCase()} request for $${request.amount.toLocaleString()} has been approved and requires your action`,
             metadata: {
               requestId,
-              groupId: params.groupId,
+              groupId,
               amount: request.amount,
               type: request.type,
             },
@@ -264,9 +268,10 @@ export async function PUT(
 // Process approved request (admin only)
 export async function PATCH(
   req: Request,
-  { params }: { params: { groupId: string } }
+  context: { params: { groupId: string } }
 ) {
   try {
+    const { groupId } = context.params;
     console.log('1. Starting PATCH request processing');
     const { userId } = await auth();
     if (!userId) {
@@ -276,10 +281,10 @@ export async function PATCH(
     console.log('2. UserId found:', userId);
 
     // Verify admin status
-    console.log('3. Verifying admin status for groupId:', params.groupId);
+    console.log('3. Verifying admin status for groupId:', groupId);
     const admin = await prisma.member.findFirst({
       where: {
-        groupId: params.groupId,
+        groupId,
         userId,
         isAdmin: true,
       },
@@ -333,7 +338,7 @@ export async function PATCH(
     console.log('10. Updating group savings for', request.type);
     try {
       const updatedGroup = await prisma.group.update({
-        where: { id: params.groupId },
+        where: { id: groupId },
         data: {
           totalSavings: {
             decrement: request.amount // Both loans and payouts decrease total savings
@@ -341,9 +346,30 @@ export async function PATCH(
         }
       });
       console.log('11. Group savings updated successfully:', updatedGroup);
+
+      // Create loan record if request type is LOAN
+      if (request.type === "LOAN") {
+        console.log('11a. Creating loan record');
+        const dueDate = new Date();
+        dueDate.setDate(dueDate.getDate() + (request.duration === "week" ? 7 : request.duration === "twoWeeks" ? 14 : 30));
+        
+        const loan = await prisma.loan.create({
+          data: {
+            amount: request.amount,
+            dueDate,
+            status: "ACTIVE",
+            borrowerId: request.member.id,
+            groupId,
+            remainingAmount: request.amount,
+            requestId: request.id,
+            interest: 0,
+          }
+        });
+        console.log('11b. Loan record created:', loan);
+      }
     } catch (error) {
-      console.error('Error updating group savings:', error);
-      return new NextResponse("Failed to update group savings", { status: 500 });
+      console.error('Error updating group savings or creating loan:', error);
+      return new NextResponse("Failed to update group savings or create loan", { status: 500 });
     }
 
     console.log('12. Creating notification');
@@ -356,7 +382,7 @@ export async function PATCH(
         message: `Your ${request.type.toLowerCase()} request for $${request.amount.toLocaleString()} has been processed`,
         metadata: {
           requestId,
-          groupId: params.groupId,
+          groupId,
           amount: request.amount,
           type: request.type,
         },
