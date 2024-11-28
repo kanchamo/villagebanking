@@ -10,9 +10,12 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { useAuth } from "@clerk/nextjs";
+import { useToast } from "@/hooks/use-toast";
 
 import { LoanStatus } from "@prisma/client";
-import { useToast } from "@/hooks/use-toast";
+import { loadStripe } from "@stripe/stripe-js";
 
 interface Loan {
   id: string;
@@ -36,6 +39,8 @@ interface LoansProps {
 export default function Loans({ groupId }: LoansProps) {
   const [loans, setLoans] = useState<Loan[]>([]);
   const { toast } = useToast();
+  const { userId } = useAuth();
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     fetchLoans();
@@ -76,6 +81,46 @@ export default function Loans({ groupId }: LoansProps) {
     return totalDue - loan.paidAmount;
   };
 
+  const handlePayment = async (loan: Loan) => {
+    try {
+      setIsLoading(true);
+      const remainingAmount = calculateRemainingAmount(loan);
+      
+      const response = await fetch('/api/payments', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          groupId,
+          amount: remainingAmount,
+          notes: `Loan payment for loan ${loan.id}`,
+          loanId: loan.id,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to create payment session');
+      }
+
+      const { sessionId } = await response.json();
+      const stripe = await loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
+      
+      if (stripe) {
+        await stripe.redirectToCheckout({ sessionId });
+      }
+    } catch (error) {
+      console.error('Error initiating payment:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to initiate payment',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <div className="rounded-md border">
       <Table>
@@ -89,6 +134,7 @@ export default function Loans({ groupId }: LoansProps) {
             <TableHead>Interest</TableHead>
             <TableHead>Paid</TableHead>
             <TableHead>Remaining</TableHead>
+            <TableHead>Actions</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -105,6 +151,17 @@ export default function Loans({ groupId }: LoansProps) {
               <TableCell>${loan.interest.toLocaleString()}</TableCell>
               <TableCell>${loan.paidAmount.toLocaleString()}</TableCell>
               <TableCell>${calculateRemainingAmount(loan).toLocaleString()}</TableCell>
+              <TableCell>
+                {loan.borrower.userId === userId && loan.status !== 'PAID' && (
+                  <Button
+                    onClick={() => handlePayment(loan)}
+                    disabled={isLoading}
+                    size="sm"
+                  >
+                    {isLoading ? 'Processing...' : 'Pay'}
+                  </Button>
+                )}
+              </TableCell>
             </TableRow>
           ))}
         </TableBody>

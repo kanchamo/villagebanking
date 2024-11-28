@@ -12,7 +12,7 @@ export async function POST(req: Request) {
       return new NextResponse("Unauthorized", { status: 401 });
     }
 
-    const { groupId, amount, notes } = await req.json();
+    const { groupId, amount, notes, loanId } = await req.json();
 
     // Create a Stripe Checkout Session
     const session = await stripe.checkout.sessions.create({
@@ -22,8 +22,10 @@ export async function POST(req: Request) {
           price_data: {
             currency: "usd",
             product_data: {
-              name: "Group Contribution",
-              description: "Contribution to your village banking group",
+              name: loanId ? "Loan Payment" : "Group Contribution",
+              description: loanId 
+                ? "Payment towards your loan" 
+                : "Contribution to your village banking group",
             },
             unit_amount: Math.round(amount * 100), // Convert to cents
           },
@@ -31,12 +33,13 @@ export async function POST(req: Request) {
         },
       ],
       mode: "payment",
-      success_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/groups/${groupId}?payment=success`,
+      success_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/groups/${groupId}?payment=success${loanId ? `&loanId=${loanId}` : ''}`,
       cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/groups/${groupId}?payment=cancelled`,
       metadata: {
         groupId,
         userId,
         notes: notes || "",
+        loanId: loanId || "",
       },
     });
 
