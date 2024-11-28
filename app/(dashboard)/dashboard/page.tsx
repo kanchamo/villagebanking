@@ -63,19 +63,19 @@ async function getDashboardData() {
       where: { memberId: { in: memberIds } },
       include: { group: true },
       orderBy: { date: 'desc' },
-      take: 5
+      take: 3
     }),
     prisma.loan.findMany({
       where: { borrowerId: { in: memberIds } },
       include: { group: true },
       orderBy: { createdAt: 'desc' },
-      take: 5
+      take: 2
     }),
     prisma.fundRequest.findMany({
       where: { memberId: { in: memberIds } },
       include: { group: true },
       orderBy: { createdAt: 'desc' },
-      take: 5
+      take: 2
     })
   ]);
 
@@ -108,7 +108,7 @@ async function getDashboardData() {
       description: `${f.type} request in ${f.group.name}`
     }))
   ].sort((a, b) => b.date.getTime() - a.date.getTime())
-   .slice(0, 10);
+   .slice(0, 6);
 
   return {
     totalMembers,
