@@ -3,7 +3,6 @@ import { Users, PiggyBank, Calendar, TrendingUp } from "lucide-react";
 import prisma from "@/lib/prisma";
 import { auth } from "@clerk/nextjs/server";
 import { formatCurrency } from "@/lib/utils";
-import { GroupSearch } from "@/components/group-search";
 
 type Activity = {
   id: string;
@@ -130,7 +129,6 @@ export default async function DashboardPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
-        <GroupSearch />
       </div>
 
       <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
