@@ -315,7 +315,7 @@ export async function PATCH(
       return new NextResponse("Request not found", { status: 404 });
     }
 
-    if (request.status !== "COMPLETED") {
+    if (request.status !== "APPROVED") {
       console.log('Error: Request status is not APPROVED:', request.status);
       return new NextResponse("Request must be approved first", { status: 400 });
     }

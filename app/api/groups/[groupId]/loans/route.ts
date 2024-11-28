@@ -1,6 +1,42 @@
 import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import prisma from "@/lib/prisma";
+import { addMonths } from "date-fns";
+import { LoanStatus, RequestType } from "@prisma/client";
+
+export async function GET(
+  _req: Request,
+  { params }: { params: { groupId: string } }
+) {
+  try {
+    const { userId } = await auth();
+    if (!userId) {
+      return new NextResponse("Unauthorized", { status: 401 });
+    }
+
+    const loans = await prisma.loan.findMany({
+      where: {
+        groupId: params.groupId,
+      },
+      include: {
+        borrower: true,
+        payments: true,
+      },
+    });
+
+    return NextResponse.json(loans);
+  } catch (error) {
+    console.error("Error fetching loans:", error);
+    return new NextResponse("Internal Server Error", { status: 500 });
+  }
+}
+
+interface LoanRequest {
+  amount: number;
+  reason: string;
+  durationMonths?: number;
+  interestRate?: number;
+}
 
 export async function POST(
   req: Request,
@@ -12,7 +48,7 @@ export async function POST(
       return new NextResponse("Unauthorized", { status: 401 });
     }
 
-    const { amount, reason } = await req.json();
+    const { amount, reason, durationMonths = 3, interestRate = 0.05 }: LoanRequest = await req.json();
 
     // Get member details
     const member = await prisma.member.findFirst({
@@ -21,7 +57,11 @@ export async function POST(
         userId,
       },
       include: {
-        group: true,
+        group: {
+          include: {
+            members: true,
+          },
+        },
       },
     });
 
@@ -47,11 +87,24 @@ export async function POST(
     // Create loan request
     const loanRequest = await prisma.fundRequest.create({
       data: {
-        type: "LOAN",
+        type: RequestType.LOAN,
         amount,
         reason,
         groupId: params.groupId,
         memberId: member.id,
+      },
+    });
+
+    // Create loan record
+    const loan = await prisma.loan.create({
+      data: {
+        amount,
+        dueDate: addMonths(new Date(), durationMonths),
+        interest: amount * interestRate,
+        groupId: params.groupId,
+        borrowerId: member.id,
+        requestId: loanRequest.id,
+        status: LoanStatus.ACTIVE,
       },
     });
 
@@ -64,17 +117,23 @@ export async function POST(
         message: `${userId} has requested a loan of $${amount.toLocaleString()}`,
         metadata: {
           requestId: loanRequest.id,
+          loanId: loan.id,
           groupId: params.groupId,
           amount,
         },
       })),
     });
 
-    return NextResponse.json(loanRequest);
+    return NextResponse.json({ loanRequest, loan });
   } catch (error) {
     console.error("Error creating loan request:", error);
     return new NextResponse("Internal Server Error", { status: 500 });
   }
+}
+
+interface ApprovalRequest {
+  requestId: string;
+  approved: boolean;
 }
 
 export async function PUT(
@@ -87,7 +146,7 @@ export async function PUT(
       return new NextResponse("Unauthorized", { status: 401 });
     }
 
-    const { requestId, approved } = await req.json();
+    const { requestId, approved }: ApprovalRequest = await req.json();
 
     // Get member details
     const member = await prisma.member.findFirst({
@@ -120,6 +179,8 @@ export async function PUT(
             members: true,
           },
         },
+        loan: true,
+        member: true,
       },
     });
 
@@ -131,26 +192,35 @@ export async function PUT(
     const requiredApprovals = Math.ceil(request.group.members.length * 0.5);
 
     if (approvalCount >= requiredApprovals) {
-      // Update request status
-      await prisma.fundRequest.update({
-        where: { id: requestId },
-        data: { status: "APPROVED" },
-      });
+      // Update request status and loan status
+      await prisma.$transaction([
+        prisma.fundRequest.update({
+          where: { id: requestId },
+          data: { status: "APPROVED" },
+        }),
+        prisma.loan.update({
+          where: { id: request.loan?.id },
+          data: { status: LoanStatus.ACTIVE },
+        }),
+      ]);
 
-      // Create notification for requester
-      await prisma.notification.create({
-        data: {
-          type: "LOAN_APPROVED",
-          userId: request.member.userId,
-          title: "Loan Request Approved",
-          message: `Your loan request for $${request.amount.toLocaleString()} has been approved`,
-          metadata: {
-            requestId,
-            groupId: params.groupId,
-            amount: request.amount,
+      if (request.member) {
+        // Create notification for requester
+        await prisma.notification.create({
+          data: {
+            type: "LOAN_APPROVED",
+            userId: request.member.userId,
+            title: "Loan Request Approved",
+            message: `Your loan request for $${request.amount.toLocaleString()} has been approved`,
+            metadata: {
+              requestId,
+              loanId: request.loan?.id,
+              groupId: params.groupId,
+              amount: request.amount,
+            },
           },
-        },
-      });
+        });
+      }
     }
 
     return NextResponse.json(approval);

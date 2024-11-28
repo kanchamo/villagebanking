@@ -19,6 +19,13 @@ enum RequestType {
   PAYOUT
 }
 
+enum LoanStatus {
+  ACTIVE
+  OVERDUE
+  PAID
+  DEFAULTED
+}
+
 model Group {
   id                 String         @id @default(auto()) @map("_id") @db.ObjectId
   name               String
@@ -36,6 +43,7 @@ model Group {
   fundRequests       FundRequest[]
   joinRequests       JoinRequest[]
   payoutSchedules    PayoutSchedule[]
+  loans              Loan[]
 }
 
 model Member {
@@ -54,6 +62,7 @@ model Member {
   notifications Notification[]
   requestApprovals RequestApproval[]
   memberPayouts  MemberPayout[]
+  loans           Loan[]        @relation("borrower")
 
   @@index([groupId])
   @@index([userId])
@@ -89,6 +98,7 @@ model FundRequest {
   memberId    String        @db.ObjectId
   member      Member        @relation(fields: [memberId], references: [id])
   approvals   RequestApproval[]
+  loan        Loan?        
 }
 
 model RequestApproval {
@@ -157,4 +167,39 @@ model Notification {
   metadata  Json? // Additional data like groupId, requestId, etc.
   Member    Member?  @relation(fields: [memberId], references: [id])
   memberId  String?  @db.ObjectId
+}
+
+model Loan {
+  id          String    @id @default(auto()) @map("_id") @db.ObjectId
+  amount      Float
+  dueDate     DateTime
+  status      LoanStatus @default(ACTIVE)
+  interest    Float
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  paidAmount  Float     @default(0)
+  
+  // Relations
+  groupId     String    @db.ObjectId
+  group       Group     @relation(fields: [groupId], references: [id])
+  borrowerId  String    @db.ObjectId
+  borrower    Member    @relation("borrower", fields: [borrowerId], references: [id])
+  requestId   String    @db.ObjectId @unique
+  request     FundRequest @relation(fields: [requestId], references: [id])
+  payments    LoanPayment[]
+
+  @@index([groupId])
+  @@index([borrowerId])
+}
+
+model LoanPayment {
+  id          String    @id @default(auto()) @map("_id") @db.ObjectId
+  amount      Float
+  paymentDate DateTime  @default(now())
+  
+  // Relations
+  loanId      String    @db.ObjectId
+  loan        Loan      @relation(fields: [loanId], references: [id])
+
+  @@index([loanId])
 }
