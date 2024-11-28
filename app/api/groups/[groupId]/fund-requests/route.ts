@@ -267,12 +267,16 @@ export async function PATCH(
   { params }: { params: { groupId: string } }
 ) {
   try {
+    console.log('1. Starting PATCH request processing');
     const { userId } = await auth();
     if (!userId) {
+      console.log('Error: No userId found');
       return new NextResponse("Unauthorized", { status: 401 });
     }
+    console.log('2. UserId found:', userId);
 
     // Verify admin status
+    console.log('3. Verifying admin status for groupId:', params.groupId);
     const admin = await prisma.member.findFirst({
       where: {
         groupId: params.groupId,
@@ -282,11 +286,21 @@ export async function PATCH(
     });
 
     if (!admin) {
+      console.log('Error: User is not an admin');
       return new NextResponse("Unauthorized - Admin only", { status: 403 });
     }
+    console.log('4. Admin verification successful');
 
-    const { requestId } = await req.json();
+    const body = await req.json();
+    console.log('5. Request body:', body);
+    const { requestId } = body;
 
+    if (!requestId) {
+      console.log('Error: No requestId provided in body');
+      return new NextResponse("Request ID is required", { status: 400 });
+    }
+
+    console.log('6. Finding fund request:', requestId);
     const request = await prisma.fundRequest.findUnique({
       where: { id: requestId },
       include: {
@@ -294,20 +308,46 @@ export async function PATCH(
       },
     });
 
+    console.log('7. Found request:', request);
+
     if (!request) {
+      console.log('Error: Request not found');
       return new NextResponse("Request not found", { status: 404 });
     }
 
     if (request.status !== "APPROVED") {
+      console.log('Error: Request status is not APPROVED:', request.status);
       return new NextResponse("Request must be approved first", { status: 400 });
     }
 
+    console.log('8. Starting transaction');
     // Update request status to completed
     const updatedRequest = await prisma.fundRequest.update({
       where: { id: requestId },
       data: { status: "COMPLETED" },
+      include: { member: true },
     });
+    console.log('9. Request updated:', updatedRequest);
 
+    // If it's a payout, update the group savings through the dedicated endpoint
+    if (request.type === "PAYOUT") {
+      console.log('10. Updating group savings for payout');
+      const savingsResponse = await fetch(`/api/groups/${params.groupId}/update-savings`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ amount: request.amount }),
+      });
+
+      if (!savingsResponse.ok) {
+        console.log('Error: Failed to update group savings:', await savingsResponse.text());
+        return new NextResponse("Failed to update group savings", { status: 500 });
+      }
+      console.log('11. Group savings updated successfully');
+    }
+
+    console.log('12. Creating notification');
     // Notify the requester
     await prisma.notification.create({
       data: {
@@ -323,10 +363,13 @@ export async function PATCH(
         },
       },
     });
+    console.log('13. Notification created');
 
+    console.log('14. Sending response');
     return NextResponse.json(updatedRequest);
   } catch (error) {
-    console.error("Error processing request:", error);
+    console.error('Error in PATCH endpoint:', error);
+    console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace available');
     return new NextResponse("Internal Server Error", { status: 500 });
   }
 }
