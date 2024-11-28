@@ -12,6 +12,7 @@ import { useAuth } from "@clerk/nextjs";
 import { FundRequests } from "@/app/components/FundRequests";
 import { toast } from "@/hooks/use-toast";
 import Loans from "@/app/components/Loans";
+import { MeetingForm } from "@/components/meetings/meeting-form";
 
 interface Contribution {
   id: string;
@@ -110,6 +111,7 @@ export default function GroupDetailsPage() {
             <TabsTrigger value="fund-requests">Fund Requests</TabsTrigger>
             <TabsTrigger value="loans">Loans</TabsTrigger>
             <TabsTrigger value="rules">Rules</TabsTrigger>
+            <TabsTrigger value="meetings">Meetings</TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview" className="space-y-4">
@@ -339,6 +341,20 @@ export default function GroupDetailsPage() {
                     fetchGroupDetails();
                   }}
                 />
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="meetings">
+            <Card>
+              <CardHeader>
+                <CardTitle>Schedule Meeting</CardTitle>
+                <CardDescription>
+                  Create a new meeting for this group
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <MeetingForm groupId={params.groupId} />
               </CardContent>
             </Card>
           </TabsContent>

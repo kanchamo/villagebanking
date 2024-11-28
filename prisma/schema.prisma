@@ -44,6 +44,8 @@ model Group {
   joinRequests       JoinRequest[]
   payoutSchedules    PayoutSchedule[]
   loans              Loan[]
+  meetings           Meeting[]
+
 }
 
 model Member {
@@ -63,6 +65,7 @@ model Member {
   requestApprovals RequestApproval[]
   memberPayouts  MemberPayout[]
   loans           Loan[]        @relation("borrower")
+  user           User          @relation(fields: [userId], references: [id]) // Added this line
 
   @@index([groupId])
   @@index([userId])
@@ -163,11 +166,28 @@ model Notification {
   userId    String // Clerk user ID of the recipient
   title     String
   message   String
+  groupId   String?
   read      Boolean  @default(false)
   createdAt DateTime @default(now())
   metadata  Json? // Additional data like groupId, requestId, etc.
   Member    Member?  @relation(fields: [memberId], references: [id])
   memberId  String?  @db.ObjectId
+}
+
+model Meeting {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  groupId   String   @db.ObjectId
+  group     Group    @relation(fields: [groupId], references: [id])
+  title     String
+  date      DateTime
+  time      String
+  link      String?
+  location  String?
+  agenda    String[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([groupId])
 }
 
 model Loan {
@@ -204,4 +224,10 @@ model LoanPayment {
   loan        Loan      @relation(fields: [loanId], references: [id])
 
   @@index([loanId])
+}
+
+model User {
+  id       String   @id @default(auto()) @map("_id") @db.ObjectId
+  // Add user fields here
+  members  Member[]  // Add this line to create the reciprocal relation
 }

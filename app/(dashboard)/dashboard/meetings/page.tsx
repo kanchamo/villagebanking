@@ -2,70 +2,58 @@
 
 import { useEffect, useState } from "react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
-import { Calendar, Clock, Users } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Calendar, Clock } from "lucide-react";
+import { ScheduleMeeting } from "@/app/components/ScheduleMeeting";
+import { useParams } from "next/navigation";
 
 interface Meeting {
   id: string;
+  title: string;
   date: string;
   time: string;
-  location: string;
+  location: string | null;
+  link: string;
   agenda: string[];
-  attendees: number;
-  status: "upcoming" | "completed" | "cancelled";
 }
 
 export default function MeetingsPage() {
+  const params = useParams();
   const [meetings, setMeetings] = useState<Meeting[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const fetchMeetings = async () => {
+    try {
+      const response = await fetch(`/api/groups/${params.groupId}/meetings`);
+      if (!response.ok) throw new Error("Failed to fetch meetings");
+      const data = await response.json();
+      setMeetings(data);
+    } catch (error) {
+      console.error("Error fetching meetings:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    // TODO: Implement API call to fetch meetings
-    // For now using mock data
-    const mockMeetings: Meeting[] = [
-      {
-        id: "1",
-        date: "2024-02-15",
-        time: "14:00",
-        location: "Community Center",
-        agenda: [
-          "Review monthly savings",
-          "Discuss new loan applications",
-          "Plan community event",
-        ],
-        attendees: 15,
-        status: "upcoming",
-      },
-      {
-        id: "2",
-        date: "2024-02-01",
-        time: "14:00",
-        location: "Community Center",
-        agenda: [
-          "Monthly financial review",
-          "New member introductions",
-          "Vote on policy changes",
-        ],
-        attendees: 12,
-        status: "completed",
-      },
-    ];
-    setMeetings(mockMeetings);
-    setLoading(false);
-  }, []);
+    fetchMeetings();
+  }, [params.groupId]);
 
   if (loading) {
     return <div>Loading meetings...</div>;
   }
 
-  const upcomingMeetings = meetings.filter((m) => m.status === "upcoming");
-  const pastMeetings = meetings.filter((m) => m.status === "completed");
+  const upcomingMeetings = meetings.filter(
+    (m) => new Date(m.date) >= new Date()
+  );
+  const pastMeetings = meetings.filter(
+    (m) => new Date(m.date) < new Date()
+  );
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold">Meetings</h1>
-        <Button>Schedule Meeting</Button>
+        <ScheduleMeeting groupId={params.groupId} onSuccess={fetchMeetings} />
       </div>
 
       <div className="space-y-6">
@@ -86,20 +74,27 @@ export default function MeetingsPage() {
                       <div className="flex items-center space-x-4">
                         <Calendar className="h-5 w-5 text-gray-500" />
                         <div>
-                          <p className="font-semibold">
-                            {new Date(meeting.date).toLocaleDateString()}
+                          <p className="font-semibold">{meeting.title}</p>
+                          <p className="text-sm text-gray-500">
+                            {new Date(meeting.date).toLocaleDateString()} at {meeting.time}
                           </p>
-                          <p className="text-sm text-gray-500">{meeting.time}</p>
                         </div>
                       </div>
                       <div className="flex items-center space-x-4">
                         <Clock className="h-5 w-5 text-gray-500" />
-                        <p className="text-sm">{meeting.location}</p>
+                        <p className="text-sm">{meeting.location || 'Online'}</p>
                       </div>
-                      <div className="flex items-center space-x-2">
-                        <Users className="h-5 w-5 text-gray-500" />
-                        <p className="text-sm">{meeting.attendees} attendees</p>
-                      </div>
+                    </div>
+                    <div>
+                      <h4 className="font-semibold mb-2">Meeting Link</h4>
+                      <a
+                        href={meeting.link}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-sm text-primary hover:underline"
+                      >
+                        {meeting.link}
+                      </a>
                     </div>
                     <div>
                       <h4 className="font-semibold mb-2">Agenda</h4>
@@ -135,20 +130,27 @@ export default function MeetingsPage() {
                       <div className="flex items-center space-x-4">
                         <Calendar className="h-5 w-5 text-gray-500" />
                         <div>
-                          <p className="font-semibold">
-                            {new Date(meeting.date).toLocaleDateString()}
+                          <p className="font-semibold">{meeting.title}</p>
+                          <p className="text-sm text-gray-500">
+                            {new Date(meeting.date).toLocaleDateString()} at {meeting.time}
                           </p>
-                          <p className="text-sm text-gray-500">{meeting.time}</p>
                         </div>
                       </div>
                       <div className="flex items-center space-x-4">
                         <Clock className="h-5 w-5 text-gray-500" />
-                        <p className="text-sm">{meeting.location}</p>
+                        <p className="text-sm">{meeting.location || 'Online'}</p>
                       </div>
-                      <div className="flex items-center space-x-2">
-                        <Users className="h-5 w-5 text-gray-500" />
-                        <p className="text-sm">{meeting.attendees} attended</p>
-                      </div>
+                    </div>
+                    <div>
+                      <h4 className="font-semibold mb-2">Meeting Link</h4>
+                      <a
+                        href={meeting.link}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-sm text-primary hover:underline"
+                      >
+                        {meeting.link}
+                      </a>
                     </div>
                     <div>
                       <h4 className="font-semibold mb-2">Agenda</h4>
