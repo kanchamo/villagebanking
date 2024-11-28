@@ -36,6 +36,7 @@ const requestSchema = z.object({
   type: z.enum(["LOAN", "PAYOUT"]),
   amount: z.string().transform((val) => parseFloat(val)),
   reason: z.string().min(10, "Please provide a detailed reason for your request"),
+  duration: z.string().optional(),
 });
 
 type RequestValues = z.infer<typeof requestSchema>;
@@ -64,6 +65,7 @@ export function RequestFunds({
       type: "LOAN",
       amount: 0,
       reason: "",
+      duration: "week",
     },
   });
 
@@ -215,6 +217,33 @@ export function RequestFunds({
                 </FormItem>
               )}
             />
+            {form.watch("type") === "LOAN" && (
+              <FormField
+                control={form.control}
+                name="duration"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Loan Duration</FormLabel>
+                    <Select
+                      onValueChange={field.onChange}
+                      defaultValue={field.value}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select duration" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="week">1 Week</SelectItem>
+                        <SelectItem value="twoWeeks">2 Weeks</SelectItem>
+                        <SelectItem value="month">1 Month</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
             {error && (
               <Alert variant="destructive">
                 <AlertCircle className="h-4 w-4" />

@@ -11,6 +11,7 @@ import { JoinGroup } from "@/app/components/JoinGroup";
 import { useAuth } from "@clerk/nextjs";
 import { FundRequests } from "@/app/components/FundRequests";
 import { toast } from "@/hooks/use-toast";
+import Loans from "@/app/components/Loans";
 
 interface Contribution {
   id: string;
@@ -107,6 +108,7 @@ export default function GroupDetailsPage() {
             <TabsTrigger value="members">Members</TabsTrigger>
             <TabsTrigger value="contributions">Contributions</TabsTrigger>
             <TabsTrigger value="fund-requests">Fund Requests</TabsTrigger>
+            <TabsTrigger value="loans">Loans</TabsTrigger>
             <TabsTrigger value="rules">Rules</TabsTrigger>
           </TabsList>
 
@@ -313,6 +315,28 @@ export default function GroupDetailsPage() {
                       title: "Success",
                       description: "Fund request updated successfully",
                     });
+                  }}
+                />
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="loans">
+            <Card>
+              <CardHeader>
+                <CardTitle>Loans</CardTitle>
+                <CardDescription>View and manage group loans</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Loans
+                  groupId={params.groupId} 
+                  isAdmin={group.members.some(m => m.userId === userId && m.isAdmin)}
+                  onSuccess={() => {
+                    toast({
+                      title: "Success",
+                      description: "Loan updated successfully",
+                    });
+                    fetchGroupDetails();
                   }}
                 />
               </CardContent>

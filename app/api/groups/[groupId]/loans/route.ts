@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import prisma from "@/lib/prisma";
-import { addMonths } from "date-fns";
 import { LoanStatus, RequestType } from "@prisma/client";
 
 export async function GET(
@@ -34,7 +33,7 @@ export async function GET(
 interface LoanRequest {
   amount: number;
   reason: string;
-  durationMonths?: number;
+  duration: 'week' | 'twoWeeks' | 'month';
   interestRate?: number;
 }
 
@@ -48,7 +47,21 @@ export async function POST(
       return new NextResponse("Unauthorized", { status: 401 });
     }
 
-    const { amount, reason, durationMonths = 3, interestRate = 0.05 }: LoanRequest = await req.json();
+    const { amount, reason, duration, interestRate = 0.05 }: LoanRequest = await req.json();
+
+    // Calculate due date based on duration
+    const dueDate = new Date();
+    switch (duration) {
+      case 'week':
+        dueDate.setDate(dueDate.getDate() + 7);
+        break;
+      case 'twoWeeks':
+        dueDate.setDate(dueDate.getDate() + 14);
+        break;
+      case 'month':
+        dueDate.setMonth(dueDate.getMonth() + 1);
+        break;
+    }
 
     // Get member details
     const member = await prisma.member.findFirst({
@@ -99,7 +112,7 @@ export async function POST(
     const loan = await prisma.loan.create({
       data: {
         amount,
-        dueDate: addMonths(new Date(), durationMonths),
+        dueDate,
         interest: amount * interestRate,
         groupId: params.groupId,
         borrowerId: member.id,
