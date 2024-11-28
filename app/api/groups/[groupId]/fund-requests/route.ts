@@ -315,7 +315,7 @@ export async function PATCH(
       return new NextResponse("Request not found", { status: 404 });
     }
 
-    if (request.status !== "APPROVED") {
+    if (request.status !== "COMPLETED") {
       console.log('Error: Request status is not APPROVED:', request.status);
       return new NextResponse("Request must be approved first", { status: 400 });
     }
@@ -329,22 +329,21 @@ export async function PATCH(
     });
     console.log('9. Request updated:', updatedRequest);
 
-    // If it's a payout, update the group savings through the dedicated endpoint
-    if (request.type === "PAYOUT") {
-      console.log('10. Updating group savings for payout');
-      const savingsResponse = await fetch(`/api/groups/${params.groupId}/update-savings`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ amount: request.amount }),
+    // Update group savings for both loans and payouts
+    console.log('10. Updating group savings for', request.type);
+    try {
+      const updatedGroup = await prisma.group.update({
+        where: { id: params.groupId },
+        data: {
+          totalSavings: {
+            decrement: request.amount // Both loans and payouts decrease total savings
+          }
+        }
       });
-
-      if (!savingsResponse.ok) {
-        console.log('Error: Failed to update group savings:', await savingsResponse.text());
-        return new NextResponse("Failed to update group savings", { status: 500 });
-      }
-      console.log('11. Group savings updated successfully');
+      console.log('11. Group savings updated successfully:', updatedGroup);
+    } catch (error) {
+      console.error('Error updating group savings:', error);
+      return new NextResponse("Failed to update group savings", { status: 500 });
     }
 
     console.log('12. Creating notification');
