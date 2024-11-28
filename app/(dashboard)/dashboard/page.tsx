@@ -4,6 +4,16 @@ import prisma from "@/lib/prisma";
 import { auth } from "@clerk/nextjs/server";
 import { formatCurrency } from "@/lib/utils";
 
+type Activity = {
+  id: string;
+  type: 'CONTRIBUTION' | 'LOAN' | 'FUND_REQUEST';
+  amount: number;
+  date: Date;
+  status: string;
+  groupName: string;
+  description: string;
+}
+
 async function getDashboardData() {
   const { userId } = await auth();
   if (!userId) return null;
@@ -46,12 +56,67 @@ async function getDashboardData() {
     a.date.getTime() - b.date.getTime()
   ).slice(0, 5);
 
+  // Get recent activities
+  const memberIds = memberData.map(m => m.id);
+  const [recentContributions, recentLoans, recentFundRequests] = await Promise.all([
+    prisma.contribution.findMany({
+      where: { memberId: { in: memberIds } },
+      include: { group: true },
+      orderBy: { date: 'desc' },
+      take: 5
+    }),
+    prisma.loan.findMany({
+      where: { borrowerId: { in: memberIds } },
+      include: { group: true },
+      orderBy: { createdAt: 'desc' },
+      take: 5
+    }),
+    prisma.fundRequest.findMany({
+      where: { memberId: { in: memberIds } },
+      include: { group: true },
+      orderBy: { createdAt: 'desc' },
+      take: 5
+    })
+  ]);
+
+  const activities: Activity[] = [
+    ...recentContributions.map(c => ({
+      id: c.id,
+      type: 'CONTRIBUTION' as const,
+      amount: c.amount,
+      date: c.date,
+      status: c.status,
+      groupName: c.group.name,
+      description: `Contribution to ${c.group.name}`
+    })),
+    ...recentLoans.map(l => ({
+      id: l.id,
+      type: 'LOAN' as const,
+      amount: l.amount,
+      date: l.createdAt,
+      status: l.status,
+      groupName: l.group.name,
+      description: `Loan from ${l.group.name}`
+    })),
+    ...recentFundRequests.map(f => ({
+      id: f.id,
+      type: 'FUND_REQUEST' as const,
+      amount: f.amount,
+      date: f.createdAt,
+      status: f.status,
+      groupName: f.group.name,
+      description: `${f.type} request in ${f.group.name}`
+    }))
+  ].sort((a, b) => b.date.getTime() - a.date.getTime())
+   .slice(0, 10);
+
   return {
     totalMembers,
     totalSavings,
     activeGroups,
     activeLoans,
-    upcomingMeetings
+    upcomingMeetings,
+    activities
   };
 }
 
@@ -117,7 +182,34 @@ export default async function DashboardPage() {
       <div className="grid gap-6 lg:grid-cols-2">
         <Card className="p-6">
           <h2 className="mb-4 text-lg font-semibold">Recent Activities</h2>
-          <p className="text-sm text-gray-500">Coming soon...</p>
+          {data.activities.length > 0 ? (
+            <div className="space-y-4">
+              {data.activities.map((activity) => (
+                <div key={activity.id} className="flex items-center justify-between border-b pb-2">
+                  <div>
+                    <h3 className="font-medium">{activity.description}</h3>
+                    <p className="text-sm text-gray-500">
+                      {new Date(activity.date).toLocaleDateString()}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <span className={`inline-block px-2 py-1 text-xs rounded-full ${
+                      activity.status === 'COMPLETED' || activity.status === 'APPROVED'
+                        ? 'bg-green-100 text-green-800'
+                        : activity.status === 'PENDING'
+                        ? 'bg-yellow-100 text-yellow-800'
+                        : 'bg-red-100 text-red-800'
+                    }`}>
+                      {activity.status}
+                    </span>
+                    <p className="mt-1 font-medium">{formatCurrency(activity.amount)}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-gray-500">No recent activities</p>
+          )}
         </Card>
 
         <Card className="p-6">
