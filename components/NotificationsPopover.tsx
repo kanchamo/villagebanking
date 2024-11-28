@@ -104,10 +104,15 @@ export function NotificationsPopover() {
   };
 
   useEffect(() => {
-    if (isOpen) {
-      fetchNotifications();
-    }
-  }, [isOpen]);
+    // Fetch notifications immediately when component mounts
+    fetchNotifications();
+
+    // Set up periodic fetching every 30 seconds
+    const interval = setInterval(fetchNotifications, 30000);
+
+    // Cleanup interval on component unmount
+    return () => clearInterval(interval);
+  }, []); // Empty dependency array means this effect runs once on mount
 
   return (
     <Popover open={isOpen} onOpenChange={setIsOpen}>
