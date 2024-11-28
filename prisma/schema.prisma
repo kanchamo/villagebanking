@@ -65,7 +65,7 @@ model Member {
   requestApprovals RequestApproval[]
   memberPayouts  MemberPayout[]
   loans           Loan[]        @relation("borrower")
-  user           User          @relation(fields: [userId], references: [id]) // Added this line
+  user           User          @relation(fields: [userId], references: [id]) 
 
   @@index([groupId])
   @@index([userId])
@@ -227,7 +227,9 @@ model LoanPayment {
 }
 
 model User {
-  id       String   @id @default(auto()) @map("_id") @db.ObjectId
-  // Add user fields here
-  members  Member[]  // Add this line to create the reciprocal relation
+  id          String    @id @map("_id") // Clerk user ID
+  savingsGoal Float     @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  members     Member[]
 }
