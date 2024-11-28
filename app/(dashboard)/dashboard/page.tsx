@@ -1,7 +1,65 @@
 import { Card } from "@/components/ui/card";
 import { Users, PiggyBank, Calendar, TrendingUp } from "lucide-react";
+import prisma from "@/lib/prisma";
+import { auth } from "@clerk/nextjs/server";
+import { formatCurrency } from "@/lib/utils";
 
-export default function DashboardPage() {
+async function getDashboardData() {
+  const { userId } = await auth();
+  if (!userId) return null;
+
+  const memberData = await prisma.member.findMany({
+    where: { userId },
+    include: {
+      group: {
+        include: {
+          members: true,
+          loans: {
+            where: {
+              status: "ACTIVE"
+            }
+          },
+          meetings: {
+            where: {
+              date: {
+                gte: new Date()
+              }
+            },
+            orderBy: {
+              date: 'asc'
+            },
+            take: 5
+          }
+        }
+      }
+    }
+  });
+
+  // Calculate totals
+  const totalMembers = memberData.reduce((acc, curr) => acc + curr.group.members.length, 0);
+  const totalSavings = memberData.reduce((acc, curr) => acc + curr.totalSavings, 0);
+  const activeGroups = memberData.length;
+  const activeLoans = memberData.reduce((acc, curr) => acc + curr.group.loans.length, 0);
+  
+  // Get upcoming meetings
+  const upcomingMeetings = memberData.flatMap(m => m.group.meetings).sort((a, b) => 
+    a.date.getTime() - b.date.getTime()
+  ).slice(0, 5);
+
+  return {
+    totalMembers,
+    totalSavings,
+    activeGroups,
+    activeLoans,
+    upcomingMeetings
+  };
+}
+
+export default async function DashboardPage() {
+  const data = await getDashboardData();
+  
+  if (!data) return <div>Please sign in to view dashboard</div>;
+
   return (
     <div className="space-y-6">
       <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
@@ -14,7 +72,7 @@ export default function DashboardPage() {
             </div>
             <div>
               <p className="text-sm font-medium text-gray-600">Total Members</p>
-              <h3 className="text-2xl font-bold text-gray-900">245</h3>
+              <h3 className="text-2xl font-bold text-gray-900">{data.totalMembers}</h3>
             </div>
           </div>
         </Card>
@@ -26,7 +84,7 @@ export default function DashboardPage() {
             </div>
             <div>
               <p className="text-sm font-medium text-gray-600">Total Savings</p>
-              <h3 className="text-2xl font-bold text-gray-900">$52,450</h3>
+              <h3 className="text-2xl font-bold text-gray-900">{formatCurrency(data.totalSavings)}</h3>
             </div>
           </div>
         </Card>
@@ -38,7 +96,7 @@ export default function DashboardPage() {
             </div>
             <div>
               <p className="text-sm font-medium text-gray-600">Active Groups</p>
-              <h3 className="text-2xl font-bold text-gray-900">12</h3>
+              <h3 className="text-2xl font-bold text-gray-900">{data.activeGroups}</h3>
             </div>
           </div>
         </Card>
@@ -50,7 +108,7 @@ export default function DashboardPage() {
             </div>
             <div>
               <p className="text-sm font-medium text-gray-600">Active Loans</p>
-              <h3 className="text-2xl font-bold text-gray-900">18</h3>
+              <h3 className="text-2xl font-bold text-gray-900">{data.activeLoans}</h3>
             </div>
           </div>
         </Card>
@@ -59,12 +117,30 @@ export default function DashboardPage() {
       <div className="grid gap-6 lg:grid-cols-2">
         <Card className="p-6">
           <h2 className="mb-4 text-lg font-semibold">Recent Activities</h2>
-          {/* Activity list will go here */}
+          <p className="text-sm text-gray-500">Coming soon...</p>
         </Card>
 
         <Card className="p-6">
           <h2 className="mb-4 text-lg font-semibold">Upcoming Meetings</h2>
-          {/* Meetings list will go here */}
+          {data.upcomingMeetings.length > 0 ? (
+            <div className="space-y-4">
+              {data.upcomingMeetings.map((meeting) => (
+                <div key={meeting.id} className="flex items-center justify-between border-b pb-2">
+                  <div>
+                    <h3 className="font-medium">{meeting.title}</h3>
+                    <p className="text-sm text-gray-500">
+                      {new Date(meeting.date).toLocaleDateString()} at {meeting.time}
+                    </p>
+                  </div>
+                  {meeting.location && (
+                    <span className="text-sm text-gray-500">{meeting.location}</span>
+                  )}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-gray-500">No upcoming meetings</p>
+          )}
         </Card>
       </div>
     </div>
