@@ -1,6 +1,6 @@
 # Village Banking Application
 
-A responsive village banking application that allows users to create groups, manage members, transfer money, and handle loans and interest calculations. This application aims to facilitate community banking by providing a platform for members to manage their finances collaboratively as well as ensure security and accountability of money.
+A responsive village banking application that allows users to create groups, manage members, transfer money, and handle loans and interest calculations. This application aims to facilitate community banking by providing a platform for members to manage their finances collaboratively as well as ensure security and accountability of money!.
 
 ## Technologies Used
 
