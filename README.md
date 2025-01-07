@@ -69,7 +69,7 @@ The project uses several configuration files:
 - `next.config.ts`: Next.js configuration
 - `tailwind.config.ts`: Tailwind CSS configuration
 - `tsconfig.json`: TypeScript configuration
-- `postcss.config.mjs`: PostCSS configuration
+- `postcss.config.mjs`: PostCSS configurations
 
 ## License
 
