@@ -53,7 +53,7 @@ To get started with the project, follow these steps:
 - Group creation and management
 - Money transfer between members
 - Interest calculation for loans
-- Meeting scheduling and notifications
+- Meeting scheduling and notifications as welL
 
 ## API Integration
 
